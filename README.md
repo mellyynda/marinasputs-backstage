@@ -18,11 +18,10 @@ Project contains:
 const config = {
   apiKey: "din API nyckel",
   authDomain: "projektID.firebaseapp.com",
-  databaseURL: "https://DinDatabasNamn.europe-west1.firebasedatabase.app",
   projectId: "projekt ID",
   storageBucket: "bucket.appspot.com",
+  messagingSenderId: "your ID here",
   appId: "app ID",
-  measurementId: "measurementId"
 };
 
 export default config; 
