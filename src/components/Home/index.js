@@ -1,242 +1,282 @@
-import React, { Component, useState, useEffect } from 'react';
+import React, { Component } from 'react';
 import {
-    AuthUserContext,
-    withAuthorization,
+  AuthUserContext,
+  withAuthorization,
 } from '../Session';
 import { withFirebase } from '../Firebase';
-import { jobs } from '../../constants/jobs.js';
+import {
+  Container,
+  Header,
+  Dimmer,
+  Loader,
+  Image,
+  Segment,
+  Icon,
+  Form,
+  Dropdown,
+  TextArea,
+  Button,
+} from 'semantic-ui-react'
 
+const paraFormatOptions = [
+  {
+    key: 'red',
+    text: 'red',
+    value: 'red',
+  },
+  {
+    key: 'thick',
+    text: 'bold',
+    value: 'thick',
+  },
+]
 
-const JobPostings = () => {
-    const [jobData, setJobData] = useState(null);
-
-    const openings = jobs.reduce((acc, value) => {
-
-        acc[value.agency] ? acc[value.agency] += 1 : acc[value.agency] = 1;
-
-        // if (acc[value.agency]) {
-        //     acc[value.agency] += 1;
-        // } else {
-        //     acc[value.agency] = 1;
-        // }
-        return acc
-    }, {});
-
-    useEffect(() => {
-        // console.log('hej från useEffect');
-        setJobData(openings);
-    }, [])
-
-
-    return (<>{jobData && <JobGraph data={jobData} />}</>)
-}
-
-const JobGraph = props => {
-
-    return (<div>my graph</div>)
-}
 
 const HomePage = () => (
-    <div>
-        <JobPostings />
-        <h1>Home Page</h1>
-        <p>The Home Page is accessible by every signed in user.</p>
-
-        <Messages />
-
-    </div>
+  <div>
+    <Container>
+      <Header as='h1'>My paragraphs</Header>
+      <Messages />
+    </Container>
+  </div>
 );
 
 class MessagesBase extends Component {
-    constructor(props) {
-        super(props);
+  constructor(props) {
+    super(props);
 
-        this.state = {
-            text: '',
-            loading: false,
-            messages: [],
-        };
-    }
-
-    onChangeText = event => {
-        this.setState({ text: event.target.value });
+    this.state = {
+      text: '',
+      type: [],
+      loading: false,
+      messages: [],
     };
+  }
 
-    onCreateMessage = (event, authUser) => {
+  onChangeText = event => {
+    this.setState({ text: event.target.value });
+  };
 
-        this.props.firebase.messages().push({
-            text: this.state.text,
-            userId: authUser.uid,
-            createdAt: this.props.firebase.serverValue.TIMESTAMP,
+  onChangeType = (event, { value }) => {
+    this.setState({ type: value.join(' ') });
+  };
+
+  onCreateMessage = (event, authUser) => {
+    this.props.firebase.messages().push({
+      text: this.state.text,
+      type: this.state.type,
+      userId: authUser.uid,
+      createdAt: this.props.firebase.serverValue.TIMESTAMP,
+    });
+
+    this.setState({ text: '', type: [] });
+
+    event.preventDefault();
+  };
+
+  onRemoveMessage = uid => {
+    this.props.firebase.message(uid).remove();
+  };
+
+  onEditMessage = (message, text, type) => {
+    const { uid, ...messageSnapshot } = message;
+
+    this.props.firebase.message(message.uid).set({
+      ...messageSnapshot,
+      text,
+      type,
+      editedAt: this.props.firebase.serverValue.TIMESTAMP,
+    });
+  };
+
+  componentDidMount() {
+    this.setState({ loading: true });
+
+    this.props.firebase.messages().on('value', snapshot => {
+
+      const messageObject = snapshot.val();
+      if (messageObject) {
+
+        const messageList = Object.keys(messageObject).map(key => ({
+          ...messageObject[key],
+          uid: key,
+        }));
+        this.setState({
+          messages: messageList,
+          loading: false,
         });
+      } else {
+        this.setState({ messages: null, loading: false });
+      }
+    });
+  }
+  componentWillUnmount() {
+    this.props.firebase.messages().off();
+  }
+  render() {
+    const { text, type, messages, loading } = this.state;
 
-        this.setState({ text: '' });
+    return (
+      <AuthUserContext.Consumer>
+        {authUser => (
+          <div>
+            {loading &&
 
-        event.preventDefault();
-    };
+              <Segment>
+                <Dimmer active inverted>
+                  <Loader inverted>Loading</Loader>
+                </Dimmer>
 
-    onRemoveMessage = uid => {
-        this.props.firebase.message(uid).remove();
-    };
-
-    onEditMessage = (message, text) => {
-        const { uid, ...messageSnapshot } = message;
-
-        this.props.firebase.message(message.uid).set({
-            ...messageSnapshot,
-            text,
-            editedAt: this.props.firebase.serverValue.TIMESTAMP,
-        });
-    };
-
-    componentDidMount() {
-        // console.log(jobs);
-        this.setState({ loading: true });
-
-        this.props.firebase.messages().on('value', snapshot => {
-
-            const messageObject = snapshot.val();
-
-            if (messageObject) {
-
-                const messageList = Object.keys(messageObject).map(key => ({
-                    ...messageObject[key],
-                    uid: key,
-                }));
-
-                this.setState({
-                    messages: messageList,
-                    loading: false,
-                });
-            } else {
-                this.setState({ messages: null, loading: false });
+                <Image src='https://react.semantic-ui.com/images/wireframe/short-paragraph.png' />
+              </Segment>
             }
-        });
-    }
-    componentWillUnmount() {
-        this.props.firebase.messages().off();
-    }
-    render() {
-        const { text, messages, loading } = this.state;
 
-        return (
-            <AuthUserContext.Consumer>
-                {authUser => (
-                    <div>
-                        {loading && <div>Loading ...</div>}
+            {messages ? (
+              <MessageList
+                authUser={authUser}
+                messages={messages}
+                onEditMessage={this.onEditMessage}
+                onRemoveMessage={this.onRemoveMessage}
+              />
+            ) : (
+              <Segment placeholder>
+                <Header icon>
+                  <Icon name='edit' />
+                  My paragraphs page is empty.<br /> You can start adding paragraphs in the form below.
+                </Header>
+              </Segment>
+            )}
 
-                        {messages ? (
-                            <MessageList
-                                authUser={authUser}
-                                messages={messages}
-                                onEditMessage={this.onEditMessage}
-                                onRemoveMessage={this.onRemoveMessage}
-                            />
-                        ) : (
-                            <div>There are no messages ...</div>
-                        )}
+            <Form onSubmit={event => this.onCreateMessage(event, authUser)}>
+              <Form.Field>
+                <label>Paragraph text:</label>
+                <TextArea
+                  value={text}
+                  onChange={this.onChangeText}
+                  placeholder='Your text here'
+                  style={{ minHeight: 100 }}
+                />
+              </Form.Field>
+              <Form.Field>
+                <label>Paragraph formating type:</label>
+                <Dropdown
+                  search
+                  multiple
+                  selection
+                  // value={type}
+                  onChange={this.onChangeType}
+                  placeholder='Your text here'
+                  options={paraFormatOptions}
+                />
+              </Form.Field>
+              <Button type="submit">Send</Button>
+            </Form>
 
-                        <form onSubmit={event => this.onCreateMessage(event, authUser)}>
-                            <input
-                                type="text"
-                                value={text}
-                                onChange={this.onChangeText}
-                            />
-                            <button type="submit">Send</button>
-                        </form>
+          </div>
+        )}
+      </AuthUserContext.Consumer>
+    );
 
-                    </div>
-                )}
-            </AuthUserContext.Consumer>
-        );
-
-    }
+  }
 }
 
 const MessageList = ({ authUser, messages, onRemoveMessage, onEditMessage }) => (
-    <ul>
-        {messages.map(message => (
-            <MessageItem
-                authUser={authUser}
-                key={message.uid}
-                message={message}
-                onRemoveMessage={onRemoveMessage}
-                onEditMessage={onEditMessage}
-            />
-        ))}
-    </ul>
+  <ul>
+    {messages.map(message => (
+      <MessageItem
+        authUser={authUser}
+        key={message.uid}
+        message={message}
+        onRemoveMessage={onRemoveMessage}
+        onEditMessage={onEditMessage}
+      />
+    ))}
+  </ul>
 );
 
 class MessageItem extends Component {
-    constructor(props) {
-        super(props);
-        this.state = {
-            editMode: false,
-            editText: this.props.message.text,
-        };
-    }
-
-    onToggleEditMode = () => {
-        this.setState(state => ({
-            editMode: !state.editMode,
-            editText: this.props.message.text,
-        }));
+  constructor(props) {
+    super(props);
+    this.state = {
+      editMode: false,
+      editText: this.props.message.text,
+      editType: this.props.message.type,
     };
+  }
 
-    onChangeEditText = event => {
-        this.setState({ editText: event.target.value });
-    };
+  onToggleEditMode = () => {
+    this.setState(state => ({
+      editMode: !state.editMode,
+      editText: this.props.message.text,
+      editType: this.props.message.type,
+    }));
+  };
 
-    onSaveEditText = () => {
-        this.props.onEditMessage(this.props.message, this.state.editText);
-        this.setState({ editMode: false });
-    };
+  onChangeEditText = event => {
+    this.setState({ editText: event.target.value });
+  };
 
-    render() {
-        const { authUser, message, onRemoveMessage } = this.props;
-        const { editMode, editText } = this.state;
+  onChangeEditType = event => {
+    this.setState({ editType: event.target.value });
+  };
 
-        return (
-            <li>
-                {editMode ? (
-                    <input
-                        type="text"
-                        value={editText}
-                        onChange={this.onChangeEditText}
-                    />
-                ) : (
-                    <span>
-                        <strong>{message.userId}</strong> {message.text}
-                        {message.editedAt && <span>(Edited)</span>}
-                    </span>
-                )}
+  onSaveEdit = () => {
+    this.props.onEditMessage(this.props.message, this.state.editText, this.state.editType);
+    this.setState({ editMode: false });
+  };
 
-                {authUser.uid === message.userId && (
-                    <span>
-                        {editMode ? (
-                            <span>
-                                <button onClick={this.onSaveEditText}>Save</button>
-                                <button onClick={this.onToggleEditMode}>Reset</button>
-                            </span>
-                        ) : (
-                            <button onClick={this.onToggleEditMode}>Edit</button>
+  render() {
+    const { authUser, message, onRemoveMessage } = this.props;
+    const { editMode, editText, editType } = this.state;
 
-                        )}
+    return (
+      <li>
+        {editMode ? (
+          <>
+            <input
+              type="text"
+              value={editText}
+              onChange={this.onChangeEditText}
+            />
+            <input
+              type="type"
+              value={editType}
+              onChange={this.onChangeEditType}
+            />
+          </>
+        ) : (
+          <span>
+            <strong>{message.userId}</strong> {message.text}, {message.type}
+            {message.editedAt && <span>(Edited)</span>}
+          </span>
+        )}
 
-                        {!editMode && (
-                            <button
-                                type="button"
-                                onClick={() => onRemoveMessage(message.uid)}
-                            >
-                                Delete
-                            </button>
-                        )}
-                    </span>
-                )}
+        {authUser.uid === message.userId && (
+          <span>
+            {editMode ? (
+              <span>
+                <button onClick={this.onSaveEdit}>Save</button>
+                <button onClick={this.onToggleEditMode}>Reset</button>
+              </span>
+            ) : (
+              <button onClick={this.onToggleEditMode}>Edit</button>
 
-            </li>
-        );
-    }
+            )}
+
+            {!editMode && (
+              <button
+                type="button"
+                onClick={() => onRemoveMessage(message.uid)}
+              >
+                Delete
+              </button>
+            )}
+          </span>
+        )}
+
+      </li>
+    );
+  }
 }
 // const MessageItem = ({ message, onRemoveMessage }) => (
 //     <li>

@@ -1,50 +1,86 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import SignOutButton from '../SignOut';
 import { AuthUserContext } from '../Session';
 import * as ROUTES from '../../constants/routes';
 import * as ROLES from '../../constants/roles';
+import {
+    Menu,
+    Segment,
+} from 'semantic-ui-react'
 
-const Navigation = () => (
-    <div>
-        <AuthUserContext.Consumer>
+const Navigation = () => {
+    const [activeItem, setActiveItem] = useState('signin')
+    const handleItemClick = (e, { name }) => setActiveItem(name)
+return (
+    <Segment inverted>
+        {/* <Checkbox
+        checked={visible}
+        label={{ children: <code>visible</code> }}
+        onChange={(e, data) => setVisible(data.checked)}
+        style={{ position: 'relative', left: '10px', top: '25px'}}
+        /> */}
+        <Menu inverted secondary stackable>
+        <AuthUserContext.Consumer>          
             {authUser =>
-                authUser ? <NavigationAuth authUser={authUser} /> : <NavigationNonAuth />
+                authUser
+                ? <NavigationAuth 
+                    authUser={authUser}
+                    activeItem={activeItem}
+                    handleItemClick={handleItemClick} 
+                /> : <NavigationNonAuth
+                    activeItem={activeItem}
+                    handleItemClick={handleItemClick}
+                />
             }
-        </AuthUserContext.Consumer>
-    </div>
-);
+        </AuthUserContext.Consumer>        
+        </Menu>
+    </Segment>
+)};
 
-const NavigationAuth = ({ authUser }) => (
-    <ul>
-        <li>
-            <Link to={ROUTES.LANDING}>Landing</Link>
-        </li>
-        <li>
-            <Link to={ROUTES.HOME}>Home</Link>
-        </li>
-        <li>
-            <Link to={ROUTES.ACCOUNT}>Account</Link>
-        </li>
+const NavigationAuth = ({ authUser, activeItem, handleItemClick }) => (
+    <>
+        <Menu.Item        
+            name='home'
+            active={activeItem === 'home'}
+            onClick={handleItemClick}
+            as={Link}
+            to={ROUTES.HOME}
+        />
+        <Menu.Item        
+            name='account'
+            active={activeItem === 'account'}
+            onClick={handleItemClick}
+            as={Link}
+            to={ROUTES.ACCOUNT}
+        />
         {!!authUser.roles[ROLES.ADMIN] && (
-            <li>
-                <Link to={ROUTES.ADMIN}>Admin</Link>
-            </li>
+            <Menu.Item            
+            name='admin'
+            active={activeItem === 'admin'}
+            onClick={handleItemClick}
+            as={Link}
+            to={ROUTES.ADMIN}
+            />
         )}
-        <li>
+        <Menu.Item        
+            name='signout'
+        >
             <SignOutButton />
-        </li>
-    </ul>
+        </Menu.Item>
+    </>
 );
 
-const NavigationNonAuth = () => (
-    <ul>
-        <li>
-            <Link to={ROUTES.LANDING}>Landing</Link>
-        </li>
-        <li>
-            <Link to={ROUTES.SIGN_IN}>Sign In</Link>
-        </li>
-    </ul>
+const NavigationNonAuth = ({activeItem, handleItemClick}) => (
+    <>
+        <Menu.Item        
+            name='signin'
+            active={activeItem === 'signin'}
+            onClick={handleItemClick}
+            as={Link}
+            to={ROUTES.SIGN_IN}
+        />
+    </>
 );
 
 export default Navigation;
